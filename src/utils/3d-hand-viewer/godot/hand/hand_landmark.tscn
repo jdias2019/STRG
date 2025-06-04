@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3 uid="uid://b03ewirciycji"]
+
+[ext_resource type="Script" uid="uid://l80unoqlxo66" path="res://hand/hand_landmark.gd" id="1_v35cl"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_rj0g2"]
+height = 1.5
+radius = 0.7
+
+[sub_resource type="SphereMesh" id="SphereMesh_wshx6"]
+
+[node name="HandLandmark" type="RigidBody3D" node_paths=PackedStringArray("sphere")]
+collision_layer = 2
+gravity_scale = 0.0
+freeze = true
+freeze_mode = 1
+max_contacts_reported = 1
+contact_monitor = true
+script = ExtResource("1_v35cl")
+sphere = NodePath("Sphere")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
+shape = SubResource("CylinderShape3D_rj0g2")
+
+[node name="Sphere" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_wshx6")
