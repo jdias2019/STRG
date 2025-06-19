@@ -187,10 +187,11 @@ cython_debug/
 src/utils/3d-hand-viewer/godot/.godot/
 test/
 src/main/dataset/
-src/utils/face-recon/ref_faces/
-src/utils/face-recon/face_database.pkl
+src/main/word_recognition/models/
+src/utils/face-recon/trained_faces/
 dataset/
-models/
-dataset_faces/
+models/custom/
 src/main/word_recognition/data/
-
+src/utils/face-recon/face_database.json
+src/utils/face-recon/trained_faces/
+models/

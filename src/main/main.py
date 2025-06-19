@@ -4,43 +4,31 @@ import numpy as np
 import os
 import time
 import json
-import sys # para argumentos de linha de comando
+import sys
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.preprocessing import image as keras_image # renomeado para evitar conflito com mp.image
+from tensorflow.keras.preprocessing import image as keras_image
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input as mobilenet_preprocess_input
 from sklearn.metrics.pairwise import cosine_similarity
 
-# diretórios e caminhos para armazenamento de dados e modelos.
-
-# diretório base do script atual
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) # ex: /caminho/para/script_dir
-
-# raiz do projeto (strg), dois níveis acima de src/main
-PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..')) # ex: /caminho/para/projeto_strg
-
-# dataset_dir: local dos dados de gestos (json).
+# configuração de caminhos do projeto
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 DATASET_DIR = os.path.join(PROJECT_ROOT, "dataset")
-# model_dir: local dos modelos treinados e ficheiros associados.
 MODEL_DIR = os.path.join(PROJECT_ROOT, "models", "custom")
-# faces_dataset_dir: diretório para armazenar imagens de facede linha de comandolhidas.
 FACES_DATASET_DIR = os.path.join(PROJECT_ROOT, "dataset_faces")
-# known_faces_file: ficheiro para armazenar as features das faces conhecidas.
 KNOWN_FACES_FILE = os.path.join(MODEL_DIR, "known_faces_data.npz")
 
 
-# model_name: nome do ficheiro do modelo keras para gestos.
 MODEL_NAME = "custom_gesture_model.keras"
-# classes_path: caminho para o ficheiro json que mapeia os índices das classes para os nomes dos gestos.
+MODEL_PATH = os.path.join(MODEL_DIR, MODEL_NAME)
 CLASSES_PATH = os.path.join(MODEL_DIR, f"{MODEL_NAME}_classes.json")
 
-# constantes para reconhecimento facial
-FACE_IMG_SIZE = (224, 224) # tamanho esperado por mobilenetv2
-FACE_RECOGNITION_THRESHOLD = 0.6 # limiar de similaridade para reconhecimento
-
-# cria os diretórios necessários se não existirem.
+# configuração de reconhecimento facial
+FACE_IMG_SIZE = (224, 224)
+FACE_RECOGNITION_THRESHOLD = 0.6
 os.makedirs(DATASET_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR, exist_ok=True)
 os.makedirs(FACES_DATASET_DIR, exist_ok=True)
@@ -55,18 +43,14 @@ mp_face_detection = mp.solutions.face_detection
 face_detection_model_mp = None # mediapipe face detection
 feature_extractor_model_keras = None # keras mobilenetv2 for feature extraction
 
-# função para inicializar modelos globais (detecção facial, extração de features)
 def initialize_global_models():
     global face_detection_model_mp, feature_extractor_model_keras
     if face_detection_model_mp is None:
         face_detection_model_mp = mp_face_detection.FaceDetection(min_detection_confidence=0.5)
     if feature_extractor_model_keras is None:
-        # usar mobilenetv2 pré-treinada no imagenet, sem a camada de classificação (include_top=false)
-        # pooling='avg' adiciona uma camada globalaveragepooling2d no final
         feature_extractor_model_keras = MobileNetV2(weights='imagenet', include_top=False, input_shape=(FACE_IMG_SIZE[0], FACE_IMG_SIZE[1], 3), pooling='avg')
         print("MobileNetV2 feature extractor loaded.")
 
-# utilitário para limpar o ecrã do terminal.
 def clear():
     os.system('clear' if os.name == 'posix' else 'cls')
 
@@ -102,31 +86,28 @@ def escolher_gesto(gestures):
     print("n - New gesture")
     op = input("Choose gesture (number or 'n'): ").strip()
     
-    if op == 'n': # opção para novo gesto.
+    if op == 'n':
         nome = input("Enter name for the new gesture: ").strip()
-        if nome: # nome fornecido, retorna.
+        if nome:
             return nome
-        else: # nome inválido, tenta novamente.
+        else:
             print("Invalid name. Please try again.")
             return escolher_gesto(gestures)
     try:
-        idx = int(op) - 1 # converte para índice base 0.
-        if 0 <= idx < len(gestures): # índice válido.
+        idx = int(op) - 1
+        if 0 <= idx < len(gestures):
             return gestures[idx]
-    except ValueError: # entrada não numérica (e não 'n').
-        pass # continua para mensagem de erro.
+    except ValueError:
+        pass
         
     print("Invalid option.")
-    return escolher_gesto(gestures) # opção inválida, tenta novamente.
+    return escolher_gesto(gestures)
 
-# coleta amostras de gestos.
 def coletar_amostras():
-    # carrega gestos existentes do dataset_dir
     existing_gestures_from_files = set()
     for f_name in os.listdir(DATASET_DIR):
         if f_name.endswith('.json'):
-            # o nome do gesto é derivado do nome do ficheiro
-            gesture_name_from_file = f_name[:-5] # remove .json
+            gesture_name_from_file = f_name[:-5]
             existing_gestures_from_files.add(gesture_name_from_file)
 
     gestures = sorted(list(existing_gestures_from_files))
@@ -134,26 +115,25 @@ def coletar_amostras():
     print("Instructions: Press 'q' to quit, 's' to save, SPACE to start/stop recording.")
     print("Tip: Record at least 100 samples per gesture for better results.")
     
-    cap = cv2.VideoCapture(0) # inicializa captura da webcam.
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Error: Could not open camera.")
         return
     
-    # inicializa mediapipe hands para uma mão.
     mp_hands_model = mp.solutions.hands.Hands(max_num_hands=1, min_detection_confidence=0.5, min_tracking_confidence=0.5)
     
-    current_gesture = escolher_gesto(gestures) # utilizador escolhe/cria gesto.
-    if current_gesture is None: # nenhum gesto selecionado.
+    current_gesture = escolher_gesto(gestures)
+    if current_gesture is None:
         cap.release()
         mp_hands_model.close()
         print("No gesture selected. Exiting collection.")
         return
 
-    collected = [] # armazena landmarks da mão para o gesto.
-    recording = False # controla o estado da gravação.
-    frame_count = 0 # contador de frames gravados.
-    last_saved_time = time.time() # para controlo de fps na gravação.
-    fps_limit = 10 # frames por segundo para gravação.
+    collected = []
+    recording = False
+    frame_count = 0
+    last_saved_time = time.time()
+    fps_limit = 10
     
     while True:
         ret, frame = cap.read() # lê frame da webcam.

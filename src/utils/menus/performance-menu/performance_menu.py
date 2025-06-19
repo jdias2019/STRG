@@ -65,7 +65,7 @@ class PerformanceGUI:
         self.own_window = root is None
         if self.own_window:
             self.root = tk.Tk()
-            self.root.title("Performance Monitor")
+            self.root.title("Performance Tracker")
             self.root.geometry("1280x800")  # aumenta tamanho da janela
             self.root.configure(bg=THEME['bg'])
         else:
@@ -103,7 +103,7 @@ class PerformanceGUI:
         
         title_lbl = tk.Label(
             header_frame, 
-            text="Performance Monitor", 
+            text="Performance Tracker", 
             font=("Arial", FONT_CONFIG['title_size'], "bold"),  # fonte maior
             fg=THEME['accent'],
             bg=THEME['bg']

@@ -28,7 +28,7 @@ class handDetector():
         )
         self.mpDraw = mp.solutions.drawing_utils
         self.tipIds: List[int] = [4, 8, 12, 16, 20]
-        self.results: Optional[mp.solutions.hands.Hands.process] = None
+        self.results: Optional[mp.solutions.hands.process] = None
         self.lmList: List[List[int]] = []
 
     def findHands(self, img: np.ndarray, draw: bool = True) -> np.ndarray:
@@ -68,17 +68,24 @@ class handDetector():
 
     def fingersUp(self) -> List[int]:
         fingers: List[int] = []
-        if not self.lmList:
-            return fingers
+        if not self.lmList or len(self.lmList) < 21:
+            return []
+            
+        # Thumb - special case - check if thumb tip is to the right of thumb base for right hand
+        # For left hand this would be reversed, but we're assuming right hand for simplicity
         if self.lmList[self.tipIds[0]][1] > self.lmList[self.tipIds[0] - 1][1]: 
             fingers.append(1)
         else:
             fingers.append(0)
+            
+        # Other fingers - check if finger tip is above finger pip (second joint)
         for id in range(1, 5):
-            if self.lmList[self.tipIds[id]][2] < self.lmList[self.tipIds[id] - 2][2]: 
-                fingers.append(1)
-            else:
-                fingers.append(0)
+            if len(self.lmList) > self.tipIds[id] and len(self.lmList) > self.tipIds[id] - 2:
+                if self.lmList[self.tipIds[id]][2] < self.lmList[self.tipIds[id] - 2][2]: 
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+                    
         return fingers
 
     def findDistance(self, p1_id: int, p2_id: int, img: np.ndarray,

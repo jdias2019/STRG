@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualização LSTM - Reconhecimento de Palavras Gestuais</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap');
+
+        :root {
+            --bg-color: #0a0a0a;
+            --surface-color: #1a1a1a;
+            --primary-color: #64b5f6;
+            --secondary-color: #4fc3f7;
+            --text-color: #e8eaf6;
+            --subtle-text-color: #9e9e9e;
+            --border-color: rgba(255, 255, 255, 0.12);
+            --shadow-color: rgba(0, 0, 0, 0.6);
+
+            --color-lstm: #42a5f5;
+            --color-dense: #66bb6a;
+            --color-dropout: #ffa726;
+            --color-output: #ef5350;
+            --color-input: #ab47bc;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, #1a1a2e 100%);
+            color: var(--text-color);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .main-title {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 3em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.3em;
+            color: var(--subtle-text-color);
+            margin-bottom: 30px;
+        }
+
+        .project-info {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 0 auto 50px;
+            max-width: 800px;
+            box-shadow: 0 8px 32px var(--shadow-color);
+        }
+
+        .project-info h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .model-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .architecture-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .flow-arrow {
+            font-size: 2.5em;
+            color: var(--primary-color);
+            transform: rotate(90deg);
+            margin: 10px 0;
+        }
+
+        .layer-card {
+            background: var(--surface-color);
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 900px;
+            box-shadow: 0 12px 40px var(--shadow-color);
+            backdrop-filter: blur(15px);
+            transition: all 0.4s ease;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .layer-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .layer-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 20px 60px var(--shadow-color);
+            transform: translateY(-5px);
+        }
+
+        .layer-header {
+            padding: 25px;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .layer-title {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1.4em;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .layer-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            color: white;
+        }
+
+        .input .layer-icon {
+            background: var(--color-input);
+        }
+
+        .lstm .layer-icon {
+            background: var(--color-lstm);
+        }
+
+        .dense .layer-icon {
+            background: var(--color-dense);
+        }
+
+        .dropout .layer-icon {
+            background: var(--color-dropout);
+        }
+
+        .output .layer-icon {
+            background: var(--color-output);
+        }
+
+        .type-tag {
+            font-size: 0.75em;
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .input .type-tag {
+            background: var(--color-input);
+        }
+
+        .lstm .type-tag {
+            background: var(--color-lstm);
+        }
+
+        .dense .type-tag {
+            background: var(--color-dense);
+        }
+
+        .dropout .type-tag {
+            background: var(--color-dropout);
+        }
+
+        .output .type-tag {
+            background: var(--color-output);
+        }
+
+        .layer-info {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.95em;
+            text-align: right;
+            color: var(--subtle-text-color);
+            line-height: 1.4;
+        }
+
+        .details-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .details-toggle:hover {
+            background: var(--primary-color);
+            color: var(--bg-color);
+            transform: translateY(-2px);
+        }
+
+        .details-content {
+            border-top: 1px solid var(--border-color);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.6s ease-out;
+        }
+
+        .details-content.active {
+            max-height: 800px;
+        }
+
+        .lstm-gates-container {
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(66, 165, 245, 0.1), rgba(79, 195, 247, 0.1));
+        }
+
+        .gates-title {
+            text-align: center;
+            font-size: 1.3em;
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .gates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .gate-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid;
+            transition: transform 0.3s ease;
+        }
+
+        .gate-card:hover {
+            transform: translateX(10px);
+        }
+
+        .forget-gate {
+            border-color: #ff9800;
+        }
+
+        .input-gate {
+            border-color: #2196f3;
+        }
+
+        .cell-gate {
+            border-color: #4caf50;
+        }
+
+        .output-gate {
+            border-color: #e91e63;
+        }
+
+        .gate-card h4 {
+            font-size: 1.1em;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+
+        .formula {
+            font-family: 'Roboto Mono', monospace;
+            color: var(--primary-color);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 0.9em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gate-description {
+            font-size: 0.9em;
+            color: var(--subtle-text-color);
+            line-height: 1.5;
+        }
+
+        .lstm-flow-diagram {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .flow-title {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .dense-details {
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(102, 187, 106, 0.1), rgba(102, 187, 106, 0.05));
+        }
+
+        .dropout-details {
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(255, 167, 38, 0.1), rgba(255, 167, 38, 0.05));
+            font-style: italic;
+            color: var(--subtle-text-color);
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .architecture-stats {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 50px;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: var(--subtle-text-color);
+            font-size: 0.9em;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 20px;
+            color: var(--subtle-text-color);
+        }
+
+        .footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* estilos do guia */
+        .guide-container {
+            position: fixed;
+            right: 30px;
+            top: 30px;
+            width: 300px;
+            max-height: calc(100vh - 60px);
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px var(--shadow-color);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            opacity: 0.9;
+            overflow-y: auto;
+            resize: both;
+            min-width: 250px;
+            min-height: 200px;
+        }
+
+        .guide-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .guide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: move;
+            user-select: none;
+        }
+
+        .guide-title {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1.1em;
+        }
+
+        .guide-toggle {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background 0.2s;
+        }
+
+        .guide-toggle:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .guide-content {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: var(--text-color);
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .guide-step {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .guide-step.active {
+            background: rgba(100, 181, 246, 0.15);
+            border-left-color: var(--secondary-color);
+        }
+
+        .guide-step-title {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .guide-step.active .guide-step-title {
+            color: var(--secondary-color);
+        }
+
+        .guide-progress {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .guide-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .layer-card.highlighted {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 30px rgba(79, 195, 247, 0.3);
+            transform: translateY(-5px);
+        }
+
+        .layer-card[data-guide-step] {
+            cursor: pointer;
+        }
+
+        .layer-card[data-guide-step]:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-3px);
+        }
+
+        .guide-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .guide-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .guide-container::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+
+        .guide-container::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        /* estilos das abas */
+        .tabs-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .tab-buttons {
+            display: inline-flex;
+            background: var(--surface-color);
+            border-radius: 10px;
+            padding: 5px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 0 2px;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: var(--bg-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* estilos da visualização da rede */
+        .network-visualization {
+            padding: 20px;
+        }
+
+        .network-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 50px;
+            position: relative;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .network-layer {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            position: relative;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s ease;
+        }
+
+        .network-layer:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .network-layer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: 20px 20px 0 0;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .layer-title {
+            text-align: center;
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 25px;
+            font-size: 1.3em;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .nodes-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .nodes-group {
+            text-align: center;
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nodes-label {
+            color: var(--text-color);
+            font-size: 1em;
+            margin-bottom: 15px;
+            font-weight: 600;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            display: inline-block;
+        }
+
+        .nodes-grid {
+            display: grid;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            justify-items: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0 auto;
+        }
+
+        .nodes-grid.extra-large {
+            grid-template-columns: repeat(8, 1fr);
+            max-width: 400px;
+        }
+
+        .nodes-grid.large {
+            grid-template-columns: repeat(6, 1fr);
+            max-width: 300px;
+        }
+
+        .nodes-grid.medium {
+            grid-template-columns: repeat(5, 1fr);
+            max-width: 250px;
+        }
+
+        .nodes-grid.small {
+            grid-template-columns: repeat(4, 1fr);
+            max-width: 200px;
+        }
+
+        .node {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .node::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.8);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .node:hover::before {
+            opacity: 1;
+        }
+
+        .node.input {
+            background: linear-gradient(135deg, var(--color-input), #9c27b0);
+        }
+
+        .node.lstm {
+            background: linear-gradient(135deg, var(--color-lstm), #1976d2);
+            animation: lstm-pulse 3s infinite;
+            box-shadow: 0 0 15px rgba(66, 165, 245, 0.4);
+        }
+
+        .node.dense {
+            background: linear-gradient(135deg, var(--color-dense), #388e3c);
+        }
+
+        .node.output {
+            background: linear-gradient(135deg, var(--color-output), #c62828);
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .node:hover {
+            transform: scale(1.4);
+            box-shadow: 0 0 20px currentColor;
+            z-index: 10;
+        }
+
+        .node.active {
+            animation: node-activate 0.6s ease;
+            transform: scale(1.2);
+        }
+
+        .more-indicator {
+            grid-column: 1 / -1;
+            color: var(--primary-color);
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-top: 10px;
+            padding: 5px 10px;
+            background: rgba(100, 181, 246, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(100, 181, 246, 0.3);
+            text-align: center;
+            justify-self: center;
+        }
+
+        .output-nodes {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .output-node {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        .output-node:hover {
+            background: rgba(239, 83, 80, 0.1);
+            border-color: var(--color-output);
+            transform: translateY(-3px);
+        }
+
+        .word-label {
+            margin-top: 12px;
+            color: var(--text-color);
+            font-size: 1em;
+            font-weight: 600;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .connections-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+        }
+
+        .network-stats {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 40px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .single-layer-nodes {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            margin: 0 auto;
+            max-width: 90%;
+        }
+
+        .layer-info-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px auto 0;
+            border-left: 4px solid var(--primary-color);
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .layer-info-box .info-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .layer-info-box .info-content {
+            color: var(--subtle-text-color);
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
+        }
+
+        @keyframes lstm-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 15px rgba(66, 165, 245, 0.4);
+            }
+
+            33% {
+                opacity: 0.8;
+                transform: scale(1.05);
+                box-shadow: 0 0 25px rgba(66, 165, 245, 0.6);
+            }
+
+            66% {
+                opacity: 0.9;
+                transform: scale(1.02);
+                box-shadow: 0 0 20px rgba(66, 165, 245, 0.5);
+            }
+        }
+
+        @keyframes node-activate {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 5px currentColor;
+            }
+
+            50% {
+                transform: scale(1.3);
+                box-shadow: 0 0 25px currentColor;
+            }
+
+            100% {
+                transform: scale(1.2);
+                box-shadow: 0 0 15px currentColor;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .guide-container {
+                position: relative;
+                right: auto;
+                top: auto;
+                width: 100%;
+                max-width: 600px;
+                margin: 20px auto;
+                resize: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.2em;
+            }
+
+            .layer-header {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .gates-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .network-container {
+                gap: 30px;
+            }
+
+            .network-layer {
+                padding: 20px;
+            }
+
+            .nodes-container {
+                gap: 15px;
+            }
+
+            .nodes-group {
+                min-width: 150px;
+            }
+
+            .single-layer-nodes {
+                gap: 10px;
+                padding: 15px;
+                max-width: 95%;
+            }
+
+            .node {
+                width: 14px;
+                height: 14px;
+            }
+
+            .node.output {
+                width: 18px;
+                height: 18px;
+            }
+
+            .output-nodes {
+                gap: 10px;
+            }
+
+            .output-node {
+                min-width: 70px;
+                padding: 10px;
+            }
+
+            .word-label {
+                font-size: 0.9em;
+            }
+
+            .layer-info-box {
+                padding: 12px;
+                max-width: 95%;
+                text-align: left;
+            }
+
+            .tab-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .tab-btn {
+                width: 100%;
+                margin: 2px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="guide-container" id="guideContainer">
+        <div class="guide-header">
+            <div class="guide-title">🧭 Explicação</div>
+            <button class="guide-toggle" onclick="toggleGuide()">✕</button>
+        </div>
+        <div class="guide-content">
+            <div class="guide-step" id="step-1">
+                <div class="guide-step-title">📥 Dados de Entrada</div>
+                Recebe sequências de 30 frames consecutivos. Cada frame contém 90 coordenadas: 21 landmarks da mão × 3
+                (x,y,z) + 9 landmarks do corpo × 3 (x,y,z). Os dados são normalizados e organizados numa matriz
+                (batch_size, 30, 90).
+            </div>
+            <div class="guide-step" id="step-2">
+                <div class="guide-step-title">🧠 LSTM Layer 1</div>
+                Primeira camada recorrente com 64 unidades LSTM. Processa sequência temporal mantendo
+                return_sequences=True para passar informação completa à próxima camada. Usa activação ReLU em vez da
+                tradicional tanh para melhor performance.
+            </div>
+            <div class="guide-step" id="step-3">
+                <div class="guide-step-title">🎲 Dropout (0.3)</div>
+                Regularização que desactiva aleatoriamente 30% das conexões durante o treino. Previne overfitting e
+                melhora generalização. Durante inferência, todos os nodes estão activos mas com pesos ajustados.
+            </div>
+            <div class="guide-step" id="step-4">
+                <div class="guide-step-title">🧠 LSTM Layer 2</div>
+                Camada expandida com 128 unidades para maior capacidade representacional. Captura padrões temporais mais
+                complexos e abstractos. Mantém return_sequences=True para continuar processamento sequencial.
+            </div>
+            <div class="guide-step" id="step-5">
+                <div class="guide-step-title">🧠 LSTM Layer 3</div>
+                Camada final de 64 unidades com return_sequences=False. Condensa toda a informação temporal numa
+                representação fixa. O estado final contém a "memória" completa da sequência de 30 frames.
+            </div>
+            <div class="guide-step" id="step-6">
+                <div class="guide-step-title">🔗 Dense Layer</div>
+                Camada totalmente conectada com 64 nodes e activação ReLU. Cada node recebe input de todos os 64
+                outputs da LSTM anterior. Transforma features temporais em representação espacial para classificação.
+            </div>
+            <div class="guide-step" id="step-7">
+                <div class="guide-step-title">🎯 Output Softmax</div>
+                Camada final com num_classes nodes (uma por palavra). Activação softmax normaliza outputs em
+                distribuição de probabilidades. Σ(probabilidades) = 1.0. Exemplo: P(olá)=0.7, P(adeus)=0.2,
+                P(obrigado)=0.1.
+            </div>
+        </div>
+        <div class="guide-progress">
+            <div class="guide-progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <div class="header">
+        <h1 class="main-title">STRG - LSTM model</h1>
+        <p class="subtitle">Reconhecimento de Palavras em Linguagem Gestual</p>
+
+        <div class="project-info">
+            <h3>📊 Como Funciona Este Modelo</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <strong>dados:</strong> 30 frames por sequência<br>
+                    <strong>pontos:</strong> 90 coordenadas (21 mão + 9 corpo) × 3D
+                </div>
+                <div class="feature-item">
+                    <strong>estrutura:</strong> LSTM 64→128→64 + Dense 64<br>
+                    <strong>regularização:</strong> Dropout 0.3 (30%)
+                </div>
+                <div class="feature-item">
+                    <strong>treino:</strong> Adam, categorical_crossentropy<br>
+                    <strong>epochs:</strong> máx 250, early stopping patience=25
+                </div>
+                <div class="feature-item">
+                    <strong>tempo real:</strong> previsão cada 5 frames<br>
+                    <strong>confiança:</strong> limiar 65% para validar palavra
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('architecture')">📋 Arquitetura</button>
+                <button class="tab-btn" onclick="switchTab('network')">🔗 Neural Network</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="model-container">
+        <div id="architecture-tab" class="tab-content active">
+            <div class="architecture-flow">
+                <div class="layer-card input" data-guide-step="1">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">📥</div>
+                            <div>
+                                <div>recebe os dados</div>
+                                <div class="type-tag">input</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            formato: (batch, 30, 90)<br>
+                            30 fotografias × 90 pontos
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card lstm" data-guide-step="2">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🧠</div>
+                            <div>
+                                <div>lstm_1</div>
+                                <div class="type-tag">lstm</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            nodes: 64<br>
+                            mantém sequência: sim<br>
+                            activação: ReLU
+                        </div>
+                        <button class="details-toggle" onclick="toggleDetails(this)">detalhes</button>
+                    </div>
+                    <div class="details-content">
+                        <div class="lstm-gates-container">
+                            <div class="gates-title">as "portas" da memória LSTM</div>
+                            <div class="gates-grid">
+                                <div class="gate-card forget-gate">
+                                    <h4>🚪 porta do esquecimento</h4>
+                                    <div class="formula">f<sub>t</sub> = σ(W<sub>f</sub>[h<sub>t-1</sub>, x<sub>t</sub>]
+                                        +
+                                        b<sub>f</sub>)</div>
+                                    <div class="gate-description">decide que informação antiga deve ser esquecida</div>
+                                </div>
+                                <div class="gate-card input-gate">
+                                    <h4>📥 porta de entrada</h4>
+                                    <div class="formula">i<sub>t</sub> = σ(W<sub>i</sub>[h<sub>t-1</sub>, x<sub>t</sub>]
+                                        +
+                                        b<sub>i</sub>)</div>
+                                    <div class="gate-description">decide que informação nova deve ser guardada</div>
+                                </div>
+                                <div class="gate-card cell-gate">
+                                    <h4>🔄 memória da célula</h4>
+                                    <div class="formula">C̃<sub>t</sub> = tanh(W<sub>C</sub>[h<sub>t-1</sub>,
+                                        x<sub>t</sub>]
+                                        + b<sub>C</sub>)</div>
+                                    <div class="gate-description">cria novos candidatos de informação para guardar
+                                    </div>
+                                </div>
+                                <div class="gate-card output-gate">
+                                    <h4>📤 porta de saída</h4>
+                                    <div class="formula">o<sub>t</sub> = σ(W<sub>o</sub>[h<sub>t-1</sub>, x<sub>t</sub>]
+                                        +
+                                        b<sub>o</sub>)</div>
+                                    <div class="gate-description">decide que parte da memória vai para a próxima camada
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="lstm-flow-diagram">
+                                <div class="flow-title">como a informação flui na LSTM</div>
+                                <div class="formula">
+                                    memória actual = (esquecer × memória antiga) + (guardar × info nova)<br>
+                                    saída = porta saída × memória processada
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card dropout" data-guide-step="3">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🎲</div>
+                            <div>
+                                <div>dropout_1</div>
+                                <div class="type-tag">dropout</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            desliga: 30% dos nodes
+                        </div>
+                        <button class="details-toggle" onclick="toggleDetails(this)">detalhes</button>
+                    </div>
+                    <div class="details-content">
+                        <div class="dropout-details">
+                            durante o treino, desliga 30% dos nodes ao acaso<br>
+                            isto evita que o modelo "decore" e ajuda-o a generalizar melhor
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card lstm" data-guide-step="4">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🧠</div>
+                            <div>
+                                <div>lstm_2</div>
+                                <div class="type-tag">lstm</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            nodes: 128<br>
+                            mantém sequência: sim<br>
+                            activação: ReLU
+                        </div>
+                        <button class="details-toggle" onclick="toggleDetails(this)">detalhes</button>
+                    </div>
+                    <div class="details-content">
+                        <div class="lstm-gates-container">
+                            <div class="gates-title">camada de memória mais poderosa</div>
+                            <p style="text-align: center; color: var(--subtle-text-color); margin-bottom: 20px;">
+                                esta camada tem 128 nodes, o que permite perceber padrões mais complexos<br>
+                                nos movimentos dos gestos ao longo do tempo
+                            </p>
+                            <div class="lstm-flow-diagram">
+                                <div class="flow-title">como processa cada fotografia</div>
+                                <div class="formula">
+                                    para cada fotografia (1, 2, ..., 30):<br>
+                                    vê o gesto actual + lembra-se do que viu antes<br>
+                                    mantém o contexto de toda a sequência de movimentos
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card dropout" data-guide-step="3">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🎲</div>
+                            <div>
+                                <div>dropout_2</div>
+                                <div class="type-tag">dropout</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            desliga: 30% dos nodes
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card lstm" data-guide-step="5">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🧠</div>
+                            <div>
+                                <div>lstm_3</div>
+                                <div class="type-tag">lstm final</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            nodes: 64<br>
+                            só o último resultado: sim<br>
+                            activação: ReLU
+                        </div>
+                        <button class="details-toggle" onclick="toggleDetails(this)">detalhes</button>
+                    </div>
+                    <div class="details-content">
+                        <div class="lstm-gates-container">
+                            <div class="gates-title">última camada de memória</div>
+                            <p style="text-align: center; color: var(--subtle-text-color); margin-bottom: 20px;">
+                                <strong>só o último resultado:</strong> pega em tudo o que "viu" nas 30 fotografias<br>
+                                e resume numa única resposta final
+                            </p>
+                            <div class="lstm-flow-diagram">
+                                <div class="flow-title">resumo final</div>
+                                <div class="formula">
+                                    entrada: 30 fotografias → saída: 1 resposta<br>
+                                    toda a informação das fotografias é resumida numa decisão final
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card dense" data-guide-step="6">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🔗</div>
+                            <div>
+                                <div>dense</div>
+                                <div class="type-tag">dense</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            nodes: 64<br>
+                            activação: ReLU
+                        </div>
+                        <button class="details-toggle" onclick="toggleDetails(this)">detalhes</button>
+                    </div>
+                    <div class="details-content">
+                        <div class="dense-details">
+                            <div class="formula">saída = ReLU(pesos × entrada + bias)</div>
+                            <p style="text-align: center; margin-top: 15px;">
+                                cada node está ligado a todos os nodes da camada anterior<br>
+                                prepara a informação para a decisão final
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card dropout" data-guide-step="3">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🎲</div>
+                            <div>
+                                <div>dropout_3</div>
+                                <div class="type-tag">dropout</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            desliga: 30% dos nodes
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flow-arrow">↓</div>
+
+                <div class="layer-card output" data-guide-step="7">
+                    <div class="layer-header">
+                        <div class="layer-title">
+                            <div class="layer-icon">🎯</div>
+                            <div>
+                                <div>resultado final</div>
+                                <div class="type-tag">output</div>
+                            </div>
+                        </div>
+                        <div class="layer-info">
+                            nodes: uma para cada palavra<br>
+                            activação: softmax<br>
+                            probabilidades (0% a 100%)
+                        </div>
+                        <button class="details-toggle" onclick="toggleDetails(this)">detalhes</button>
+                    </div>
+                    <div class="details-content">
+                        <div class="dense-details">
+                            <div class="formula">
+                                softmax transforma números em percentagens<br>
+                                todas as percentagens somam sempre 100%
+                            </div>
+                            <p style="text-align: center; margin-top: 15px;">
+                                converte os números finais em probabilidades para cada palavra<br>
+                                exemplo: "olá": 70%, "adeus": 20%, "obrigado": 10%
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="architecture-stats">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">📊 dados do projeto STRG</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">250</div>
+                        <div class="stat-label">epochs máximas</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">32</div>
+                        <div class="stat-label">batch size</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">80/20</div>
+                        <div class="stat-label">treino/teste %</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">0.65</div>
+                        <div class="stat-label">limiar confiança</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">0.0005</div>
+                        <div class="stat-label">early stop min_delta</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">25</div>
+                        <div class="stat-label">early stop patience</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="network-tab" class="tab-content">
+            <div class="network-visualization">
+                <h3 style="text-align: center; color: var(--primary-color); margin-bottom: 30px;">🧠 Representação
+                    Visual da LSTM</h3>
+
+                <div class="network-container">
+                    <div class="network-layer input-layer">
+                        <div class="layer-title">📥 Input Layer (90 features)</div>
+                        <div class="nodes-container">
+                            <div class="nodes-group">
+                                <div class="nodes-label">🤚 Mão (63 pontos)</div>
+                                <div class="nodes-grid large">
+                                    <div class="node input" title="Coordenada X do pulso"></div>
+                                    <div class="node input" title="Coordenada Y do pulso"></div>
+                                    <div class="node input" title="Coordenada Z do pulso"></div>
+                                    <div class="node input" title="Coordenada X do polegar"></div>
+                                    <div class="node input" title="Coordenada Y do polegar"></div>
+                                    <div class="node input" title="Coordenada Z do polegar"></div>
+                                    <div class="node input" title="Coordenada X do indicador"></div>
+                                    <div class="node input" title="Coordenada Y do indicador"></div>
+                                    <div class="node input" title="Coordenada Z do indicador"></div>
+                                    <div class="node input" title="Coordenada X do médio"></div>
+                                    <div class="node input" title="Coordenada Y do médio"></div>
+                                    <div class="node input" title="Coordenada Z do médio"></div>
+                                    <div class="node input" title="Coordenada X do anelar"></div>
+                                    <div class="node input" title="Coordenada Y do anelar"></div>
+                                    <div class="node input" title="Coordenada Z do anelar"></div>
+                                    <div class="node input" title="Coordenada X do mindinho"></div>
+                                    <div class="node input" title="Coordenada Y do mindinho"></div>
+                                    <div class="node input" title="Coordenada Z do mindinho"></div>
+                                    <div class="more-indicator">+45 landmarks restantes</div>
+                                </div>
+                            </div>
+                            <div class="nodes-group">
+                                <div class="nodes-label">🧍 Corpo (27 pontos)</div>
+                                <div class="nodes-grid medium">
+                                    <div class="node input" title="Ombro esquerdo X"></div>
+                                    <div class="node input" title="Ombro esquerdo Y"></div>
+                                    <div class="node input" title="Ombro esquerdo Z"></div>
+                                    <div class="node input" title="Ombro direito X"></div>
+                                    <div class="node input" title="Ombro direito Y"></div>
+                                    <div class="node input" title="Ombro direito Z"></div>
+                                    <div class="node input" title="Cotovelo esquerdo X"></div>
+                                    <div class="node input" title="Cotovelo esquerdo Y"></div>
+                                    <div class="node input" title="Cotovelo esquerdo Z"></div>
+                                    <div class="node input" title="Cotovelo direito X"></div>
+                                    <div class="node input" title="Cotovelo direito Y"></div>
+                                    <div class="node input" title="Cotovelo direito Z"></div>
+                                    <div class="more-indicator">+15 landmarks restantes</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="layer-info-box">
+                            <div class="info-title">💡 Como funciona</div>
+                            <div class="info-content">Cada frame de vídeo é convertido em 90 números: 21 pontos da mão ×
+                                3 coordenadas + 9 pontos do corpo × 3 coordenadas. O modelo recebe sequências de 30
+                                frames consecutivos.</div>
+                        </div>
+                    </div>
+
+                    <div class="network-layer lstm-layer">
+                        <div class="layer-title">🧠 LSTM Layer 1 (64 units)</div>
+                        <div class="single-layer-nodes">
+                            <div class="node lstm" title="LSTM cell 1 - processa sequência temporal"></div>
+                            <div class="node lstm" title="LSTM cell 2 - mantém memória a longo prazo"></div>
+                            <div class="node lstm" title="LSTM cell 3 - filtra informação relevante"></div>
+                            <div class="node lstm" title="LSTM cell 4 - controla fluxo de dados"></div>
+                            <div class="node lstm" title="LSTM cell 5 - preserva contexto temporal"></div>
+                            <div class="node lstm" title="LSTM cell 6 - actualiza estado interno"></div>
+                            <div class="node lstm" title="LSTM cell 7 - gera output temporal"></div>
+                            <div class="node lstm" title="LSTM cell 8 - combina input e memória"></div>
+                            <div class="node lstm" title="LSTM cell 9 - regula informação"></div>
+                            <div class="node lstm" title="LSTM cell 10 - processa padrões"></div>
+                            <div class="node lstm" title="LSTM cell 11 - mantém estado"></div>
+                            <div class="node lstm" title="LSTM cell 12 - filtra ruído"></div>
+                            <div class="more-indicator">+52 nodes LSTM restantes</div>
+                        </div>
+                        <div class="layer-info-box">
+                            <div class="info-title">🔄 Processamento Temporal</div>
+                            <div class="info-content">Cada célula LSTM processa os 30 frames sequencialmente, mantendo
+                                memória dos gestos anteriores. Usa portas especiais para decidir o que esquecer, guardar
+                                e passar adiante.</div>
+                        </div>
+                    </div>
+
+                    <div class="network-layer lstm-layer">
+                        <div class="layer-title">🧠 LSTM Layer 2 (128 units) - Expansão</div>
+                        <div class="single-layer-nodes">
+                            <div class="node lstm" title="LSTM expandida 1 - maior capacidade"></div>
+                            <div class="node lstm" title="LSTM expandida 2 - padrões complexos"></div>
+                            <div class="node lstm" title="LSTM expandida 3 - memória aprofundada"></div>
+                            <div class="node lstm" title="LSTM expandida 4 - contexto rico"></div>
+                            <div class="node lstm" title="LSTM expandida 5 - análise detalhada"></div>
+                            <div class="node lstm" title="LSTM expandida 6 - correlações temporais"></div>
+                            <div class="node lstm" title="LSTM expandida 7 - features abstratas"></div>
+                            <div class="node lstm" title="LSTM expandida 8 - sequências longas"></div>
+                            <div class="node lstm" title="LSTM expandida 9 - dependências distantes"></div>
+                            <div class="node lstm" title="LSTM expandida 10 - padrões subtis"></div>
+                            <div class="node lstm" title="LSTM expandida 11 - contexto global"></div>
+                            <div class="node lstm" title="LSTM expandida 12 - representação rica"></div>
+                            <div class="node lstm" title="LSTM expandida 13 - análise profunda"></div>
+                            <div class="node lstm" title="LSTM expandida 14 - memória complexa"></div>
+                            <div class="node lstm" title="LSTM expandida 15 - features hierárquicas"></div>
+                            <div class="node lstm" title="LSTM expandida 16 - padrões avançados"></div>
+                            <div class="more-indicator">+112 nodes LSTM expandidas</div>
+                        </div>
+                        <div class="layer-info-box">
+                            <div class="info-title">🚀 Maior Capacidade</div>
+                            <div class="info-content">Esta camada tem o dobro dos nodes (128 vs 64) para capturar
+                                padrões mais complexos e subtis nos gestos. Consegue "ver" relações temporais mais
+                                distantes e abstractas.</div>
+                        </div>
+                    </div>
+
+                    <div class="network-layer lstm-layer">
+                        <div class="layer-title">🧠 LSTM Layer 3 (64 units) - Final</div>
+                        <div class="single-layer-nodes">
+                            <div class="node lstm" title="LSTM final 1 - condensação temporal"></div>
+                            <div class="node lstm" title="LSTM final 2 - resumo da sequência"></div>
+                            <div class="node lstm" title="LSTM final 3 - extração de essence"></div>
+                            <div class="node lstm" title="LSTM final 4 - decisão temporal"></div>
+                            <div class="node lstm" title="LSTM final 5 - síntese final"></div>
+                            <div class="node lstm" title="LSTM final 6 - compressão inteligente"></div>
+                            <div class="node lstm" title="LSTM final 7 - output concentrado"></div>
+                            <div class="node lstm" title="LSTM final 8 - memória essencial"></div>
+                            <div class="node lstm" title="LSTM final 9 - padrão dominante"></div>
+                            <div class="node lstm" title="LSTM final 10 - contexto final"></div>
+                            <div class="node lstm" title="LSTM final 11 - representação concisa"></div>
+                            <div class="node lstm" title="LSTM final 12 - preparação para Dense"></div>
+                            <div class="more-indicator">+52 nodes finais LSTM</div>
+                        </div>
+                        <div class="layer-info-box">
+                            <div class="info-title">🎯 Síntese Final</div>
+                            <div class="info-content">Camada final com return_sequences=False. Condensa toda a
+                                informação dos 30 frames numa representação única de 64 valores, pronta para
+                                classificação.</div>
+                        </div>
+                    </div>
+
+                    <div class="network-layer dense-layer">
+                        <div class="layer-title">🔗 Dense Layer (64 units)</div>
+                        <div class="single-layer-nodes">
+                            <div class="node dense" title="node 1 - combinação linear"></div>
+                            <div class="node dense" title="node 2 - activação ReLU"></div>
+                            <div class="node dense" title="node 3 - transformação features"></div>
+                            <div class="node dense" title="node 4 - conectividade total"></div>
+                            <div class="node dense" title="node 5 - processamento espacial"></div>
+                            <div class="node dense" title="node 6 - extração patterns"></div>
+                            <div class="node dense" title="node 7 - preparação output"></div>
+                            <div class="node dense" title="node 8 - refinamento features"></div>
+                            <div class="node dense" title="node 9 - correlação dados"></div>
+                            <div class="node dense" title="node 10 - amplificação sinal"></div>
+                            <div class="node dense" title="node 11 - filtragem ruído"></div>
+                            <div class="node dense" title="node 12 - consolidação info"></div>
+                            <div class="more-indicator">+52 nodes restantes</div>
+                        </div>
+                        <div class="layer-info-box">
+                            <div class="info-title">⚡ Conectividade Total</div>
+                            <div class="info-content">Cada node conecta-se a todos os 64 outputs da LSTM anterior.
+                                Transforma as features temporais em representação espacial, preparando para a decisão
+                                final.</div>
+                        </div>
+                    </div>
+
+                    <div class="network-layer output-layer">
+                        <div class="layer-title">🎯 Output Layer (5 classes)</div>
+                        <div class="output-nodes">
+                            <div class="output-node">
+                                <div class="node output" title="Probabilidade da palavra 'olá'"></div>
+                                <div class="word-label">👋 olá</div>
+                                <div style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">P(olá)
+                                    = ?</div>
+                            </div>
+                            <div class="output-node">
+                                <div class="node output" title="Probabilidade da palavra 'adeus'"></div>
+                                <div class="word-label">🙋 adeus</div>
+                                <div style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">
+                                    P(adeus) = ?</div>
+                            </div>
+                            <div class="output-node">
+                                <div class="node output" title="Probabilidade da palavra 'obrigado'"></div>
+                                <div class="word-label">🙏 obrigado</div>
+                                <div style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">
+                                    P(obrigado) = ?</div>
+                            </div>
+                            <div class="output-node">
+                                <div class="node output" title="Probabilidade da palavra 'sim'"></div>
+                                <div class="word-label">✅ sim</div>
+                                <div style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">P(sim)
+                                    = ?</div>
+                            </div>
+                            <div class="output-node">
+                                <div class="node output" title="Probabilidade da palavra 'não'"></div>
+                                <div class="word-label">❌ não</div>
+                                <div style="font-size: 0.8em; color: var(--subtle-text-color); margin-top: 5px;">P(não)
+                                    = ?</div>
+                            </div>
+                        </div>
+                        <div class="layer-info-box">
+                            <div class="info-title">📊 Softmax Activation</div>
+                            <div class="info-content">Cada node representa a probabilidade de uma palavra. A soma de
+                                todas as probabilidades é sempre 100%. O modelo escolhe a palavra com maior
+                                probabilidade.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <svg class="connections-svg" width="100%" height="100%">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="var(--primary-color)" opacity="0.6" />
+                        </marker>
+                    </defs>
+                </svg>
+
+                <div class="network-stats">
+                    <h4 style="color: var(--primary-color); margin-bottom: 15px;">📊 Parâmetros Treináveis</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">~190k</div>
+                            <div class="stat-label">parâmetros LSTM</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">~8k</div>
+                            <div class="stat-label">parâmetros Dense</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">~198k</div>
+                            <div class="stat-label">total parâmetros</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">0.3</div>
+                            <div class="stat-label">dropout rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>inspirado nos artigos <a href="https://www.jeremyjordan.me/intro-to-neural-networks/" target="_blank">neural
+                networks: representation</a> e <a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/"
+                target="_blank">Understanding LSTMs</a></p><br>
+        <h4>STRG</h4>
+    </div>
+
+    <script>
+        function toggleDetails(button) {
+            const content = button.closest('.layer-card').querySelector('.details-content');
+            const isActive = content.classList.contains('active');
+
+            if (isActive) {
+                content.classList.remove('active');
+                button.textContent = 'detalhes';
+            } else {
+                content.classList.add('active');
+                button.textContent = 'ocultar';
+            }
+        }
+
+        // sistema de guia interativo
+        let currentStep = 0;
+        let guideVisible = true;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let currentTab = 'architecture';
+
+        function switchTab(tabName) {
+            // remove classe ativa de todas as abas e botões
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            // adiciona classe ativa à aba e botão selecionados
+            document.getElementById(tabName + '-tab').classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+
+            currentTab = tabName;
+
+            // inicializa visualização da rede se mudar para aba network
+            if (tabName === 'network') {
+                setTimeout(() => {
+                    initializeNetworkConnections();
+                    initializeNodeInteractions();
+                }, 100);
+            }
+        }
+
+        function toggleGuide() {
+            const guideContainer = document.getElementById('guideContainer');
+            guideVisible = !guideVisible;
+
+            if (guideVisible) {
+                guideContainer.classList.remove('hidden');
+                document.querySelector('.guide-toggle').textContent = '✕';
+            } else {
+                guideContainer.classList.add('hidden');
+                document.querySelector('.guide-toggle').textContent = '🧭';
+            }
+        }
+
+        function updateGuideStep(step) {
+            // remove classe ativa de todos os passos
+            document.querySelectorAll('.guide-step').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.layer-card').forEach(c => c.classList.remove('highlighted'));
+
+            // adiciona classe ativa ao passo atual
+            const currentStepElement = document.getElementById(`step-${step}`);
+            if (currentStepElement) {
+                currentStepElement.classList.add('active');
+
+                // faz scroll do passo ativo para ficar visível no contentor do guia
+                const guideContent = document.querySelector('.guide-content');
+                if (guideContent) {
+                    const stepRect = currentStepElement.getBoundingClientRect();
+                    const containerRect = guideContent.getBoundingClientRect();
+
+                    // verifica se o passo não está totalmente visível
+                    if (stepRect.top < containerRect.top || stepRect.bottom > containerRect.bottom) {
+                        currentStepElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                }
+            }
+
+            // destaca a camada correspondente
+            const layerCard = document.querySelector(`[data-guide-step="${step}"]`);
+            if (layerCard) {
+                layerCard.classList.add('highlighted');
+            }
+
+            // atualiza barra de progresso
+            const progressBar = document.getElementById('progressBar');
+            const progress = (step / 7) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        function handleScroll() {
+            if (!guideVisible || currentTab !== 'architecture') return;
+
+            const scrollPosition = window.scrollY + window.innerHeight / 2;
+            const layerCards = document.querySelectorAll('[data-guide-step]');
+
+            let activeStep = 1; // padrão para o primeiro passo
+
+            // cria array para rastrear todas as camadas com os seus passos
+            const layers = [];
+            layerCards.forEach(card => {
+                const stepNumber = parseInt(card.getAttribute('data-guide-step'));
+                const cardTop = card.offsetTop;
+                const cardBottom = cardTop + card.offsetHeight;
+                layers.push({ step: stepNumber, top: cardTop, bottom: cardBottom, card: card });
+            });
+
+            // ordena por posição na página
+            layers.sort((a, b) => a.top - b.top);
+
+            // encontra a camada mais próxima do centro do ecrã
+            let closestDistance = Infinity;
+            layers.forEach(layer => {
+                const cardCenter = (layer.top + layer.bottom) / 2;
+                const distance = Math.abs(scrollPosition - cardCenter);
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    activeStep = layer.step;
+                }
+            });
+
+            if (activeStep !== currentStep) {
+                currentStep = activeStep;
+                updateGuideStep(currentStep);
+            }
+        }
+
+        function initializeNetworkConnections() {
+            const svg = document.querySelector('.connections-svg');
+            if (!svg) return;
+
+            svg.innerHTML = svg.querySelector('defs').outerHTML; // mantém marcadores
+
+            const layers = document.querySelectorAll('.network-layer');
+            const connections = [];
+
+            // cria conexões animadas entre as camadas
+            for (let i = 0; i < layers.length - 1; i++) {
+                const currentLayer = layers[i];
+                const nextLayer = layers[i + 1];
+
+                const currentRect = currentLayer.getBoundingClientRect();
+                const nextRect = nextLayer.getBoundingClientRect();
+                const svgRect = svg.getBoundingClientRect();
+
+                // calcula pontos de conexão
+                const startX = currentRect.left + currentRect.width / 2 - svgRect.left;
+                const startY = currentRect.bottom - svgRect.top;
+                const endX = nextRect.left + nextRect.width / 2 - svgRect.left;
+                const endY = nextRect.top - svgRect.top;
+
+                // cria linha animada
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', startX);
+                line.setAttribute('y1', startY);
+                line.setAttribute('x2', endX);
+                line.setAttribute('y2', endY);
+                line.setAttribute('stroke', 'var(--primary-color)');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('opacity', '0.4');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+
+                // animação
+                line.style.strokeDasharray = '5,5';
+                line.style.animation = `dash 2s linear infinite`;
+
+                svg.appendChild(line);
+            }
+
+            // adiciona CSS para animação tracejada
+            if (!document.querySelector('#dash-animation')) {
+                const style = document.createElement('style');
+                style.id = 'dash-animation';
+                style.textContent = `
+                    @keyframes dash {
+                        to {
+                            stroke-dashoffset: -10;
+                        }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        function initializeNodeInteractions() {
+            // adiciona interação aos nodes
+            const nodes = document.querySelectorAll('.node');
+
+            nodes.forEach((node, index) => {
+                // animação de entrada escalonada
+                node.style.opacity = '0';
+                node.style.transform = 'scale(0)';
+
+                setTimeout(() => {
+                    node.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    node.style.opacity = '1';
+                    node.style.transform = 'scale(1)';
+                }, index * 50);
+
+                // efeito de clique
+                node.addEventListener('click', function () {
+                    this.classList.add('active');
+                    setTimeout(() => {
+                        this.classList.remove('active');
+                    }, 600);
+                });
+
+                // efeito de hover melhorado
+                node.addEventListener('mouseenter', function () {
+                    // destaca nodes relacionados da mesma camada
+                    const parentLayer = this.closest('.network-layer');
+                    const layerNodes = parentLayer.querySelectorAll('.node');
+
+                    layerNodes.forEach(n => {
+                        if (n !== this) {
+                            n.style.opacity = '0.3';
+                        }
+                    });
+                });
+
+                node.addEventListener('mouseleave', function () {
+                    // restaura opacidade de todos os nodes
+                    const parentLayer = this.closest('.network-layer');
+                    const layerNodes = parentLayer.querySelectorAll('.node');
+
+                    layerNodes.forEach(n => {
+                        n.style.opacity = '1';
+                    });
+                });
+            });
+
+            // simulação de propagação de dados
+            setInterval(() => {
+                simulateDataFlow();
+            }, 8000);
+        }
+
+        function simulateDataFlow() {
+            const layers = document.querySelectorAll('.network-layer');
+
+            layers.forEach((layer, layerIndex) => {
+                const nodes = layer.querySelectorAll('.node');
+
+                setTimeout(() => {
+                    // ativa nodes aleatórios em cada camada
+                    const randomNodes = Array.from(nodes)
+                        .sort(() => Math.random() - 0.5)
+                        .slice(0, Math.min(5, nodes.length));
+
+                    randomNodes.forEach((node, nodeIndex) => {
+                        setTimeout(() => {
+                            node.classList.add('active');
+                            setTimeout(() => {
+                                node.classList.remove('active');
+                            }, 1000);
+                        }, nodeIndex * 100);
+                    });
+                }, layerIndex * 500);
+            });
+        }
+
+        // animação de entrada suave
+        document.addEventListener('DOMContentLoaded', function () {
+            const cards = document.querySelectorAll('.layer-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(50px)';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+
+            // inicializa guia
+            updateGuideStep(1);
+
+            // adiciona listener de scroll para o guia
+            window.addEventListener('scroll', handleScroll);
+
+            // inicializa interações se estivermos na aba network
+            if (currentTab === 'network') {
+                initializeNodeInteractions();
+            }
+
+            // torna o guia arrastável
+            const guideContainer = document.getElementById('guideContainer');
+            const guideHeader = guideContainer.querySelector('.guide-header');
+
+            guideHeader.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const rect = guideContainer.getBoundingClientRect();
+                dragOffset.x = e.clientX - rect.left;
+                dragOffset.y = e.clientY - rect.top;
+                guideContainer.style.transition = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const x = e.clientX - dragOffset.x;
+                const y = e.clientY - dragOffset.y;
+
+                // mantém dentro dos limites do ecrã
+                const maxX = window.innerWidth - guideContainer.offsetWidth;
+                const maxY = window.innerHeight - guideContainer.offsetHeight;
+
+                const boundedX = Math.max(0, Math.min(x, maxX));
+                const boundedY = Math.max(0, Math.min(y, maxY));
+
+                guideContainer.style.left = boundedX + 'px';
+                guideContainer.style.top = boundedY + 'px';
+                guideContainer.style.right = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    guideContainer.style.transition = 'all 0.3s ease';
+                }
+            });
+
+            // adiciona listeners de clique aos passos do guia
+            document.querySelectorAll('.guide-step').forEach((step, index) => {
+                step.addEventListener('click', () => {
+                    const stepNumber = index + 1;
+                    const targetCard = document.querySelector(`[data-guide-step="${stepNumber}"]`);
+                    if (targetCard) {
+                        // atualiza guia imediatamente
+                        updateGuideStep(stepNumber);
+                        currentStep = stepNumber;
+                        // faz scroll para a camada alvo
+                        targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+            });
+
+            // adiciona listeners de clique às camadas
+            document.querySelectorAll('[data-guide-step]').forEach(card => {
+                card.addEventListener('click', () => {
+                    const stepNumber = parseInt(card.getAttribute('data-guide-step'));
+                    updateGuideStep(stepNumber);
+                    currentStep = stepNumber;
+                    // faz scroll para centrar a camada clicada
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
