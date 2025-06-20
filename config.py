@@ -16,5 +16,5 @@ PROGRAMS_CONFIG = [
     {"key": Qt.Key_F5, "path": "src/utils/face-recon/face.py", "name": "Face ID", "emoji": "😀"},
     {"key": Qt.Key_F6, "path": "src/utils/binary-vision/binary_vision.py", "name": "Visão Binária", "emoji": "👁️"},
     {"key": Qt.Key_F7, "path": "src/utils/3d-hand-viewer/python/hand_detection.py", "name": "3D", "emoji": "🖐️🌀"},
-    {"key": Qt.Key_F8, "path": "src/utils/menus/performance-menu/performance_menu.py", "name": "Performance", "emoji": "⚡"},
+
 ]

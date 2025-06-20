@@ -13,36 +13,12 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import warnings
+import atexit
 warnings.filterwarnings('ignore')
 
 
 class FaceRecognitionSystem:
     def __init__(self):
-        # configurar câmara baseado no sistema operativo
-        if platform.system() == "Windows":
-            self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        else:
-            # Linux/MacOS - tentar diferentes backends
-            self.cap = cv2.VideoCapture(0)
-            if not self.cap.isOpened():
-                # tentar com V4L2 no Linux
-                self.cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-        
-        # verificar se a câmara foi aberta com sucesso
-        if not self.cap.isOpened():
-            raise RuntimeError("no webcam")
-        
-        # configurar resolução
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        
-        # testar captura de frame
-        ret, test_frame = self.cap.read()
-        if not ret:
-            raise RuntimeError("no frame")
-        
-        print(f"✓ Câmara inicializada com sucesso - Resolução: {test_frame.shape[1]}x{test_frame.shape[0]}")
-        
         # obter diretório atual do script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         
@@ -57,7 +33,7 @@ class FaceRecognitionSystem:
             os.makedirs(self.faces_dir)
             print(f"✓ Diretório criado: {self.faces_dir}")
         
-        # carregar base de dados e modelo existentes
+        # carregar base de dados e modelo existentes PRIMEIRO
         self.face_database = self.load_database()
         self.face_embeddings = []
         self.face_labels = []
@@ -68,6 +44,18 @@ class FaceRecognitionSystem:
         # carregar modelo treinado se existir
         self.load_trained_model()
         
+        # inicializar câmara com melhor tratamento de erros (DEPOIS de carregar database)
+        self.cap = None
+        self._init_camera()
+        
+        # registrar cleanup no exit
+        atexit.register(self.cleanup)
+        
+        # se temos faces mas o modelo não está treinado, retreinar automaticamente
+        if self.face_database and not self.is_model_trained:
+            print("🔄 Faces encontradas mas modelo não treinado. A retreinar automaticamente...")
+            self.retrain_from_database()
+        
         # variáveis para reconhecimento em tempo real
         self.current_matches = {}
         self.recognition_lock = threading.Lock()
@@ -77,21 +65,130 @@ class FaceRecognitionSystem:
         self.confidence_threshold = 0.7  # limiar de confiança para classificação
         self.recognition_interval = 15  # verificar a cada 15 frames para melhor responsividade
         self.model_name = 'Facenet512'  # modelo mais preciso para embeddings
+    
+    def _init_camera(self):
+        """inicializa a câmara com tratamento robusto de erros"""
+        # libertar câmara anterior se existir
+        if self.cap and self.cap.isOpened():
+            self.cap.release()
+            time.sleep(0.5)  # dar tempo para libertar
         
+        # verificar dispositivos de vídeo disponíveis
+        video_devices = []
+        for i in range(5):  # verificar até 5 dispositivos
+            try:
+                if os.path.exists(f'/dev/video{i}'):
+                    video_devices.append(i)
+            except:
+                continue
+        
+        if video_devices:
+            print(f"📹 Dispositivos de vídeo encontrados: {video_devices}")
+        else:
+            print("⚠️ Nenhum dispositivo de vídeo encontrado em /dev/video*")
+        
+        # tentar diferentes backends e dispositivos
+        backends_to_try = []
+        
+        if platform.system() == "Windows":
+            backends_to_try = [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]
+        else:
+            backends_to_try = [cv2.CAP_V4L2, cv2.CAP_ANY, cv2.CAP_GSTREAMER]
+        
+        # tentar cada combinação de backend e dispositivo
+        for device_id in video_devices if video_devices else [0, 1]:
+            for backend in backends_to_try:
+                try:
+                    print(f"🔄 Tentando câmara {device_id} com backend {backend}...")
+                    self.cap = cv2.VideoCapture(device_id, backend)
+                    
+                    if self.cap.isOpened():
+                        # configurar resolução
+                        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        
+                        # configurar propriedades para melhor performance
+                        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                        self.cap.set(cv2.CAP_PROP_FPS, 30)
+                        
+                        # testar captura de frame
+                        ret, test_frame = self.cap.read()
+                        if ret and test_frame is not None and test_frame.size > 0:
+                            print(f"✅ Câmara {device_id} inicializada com sucesso (backend: {backend})")
+                            print(f"📏 Resolução: {test_frame.shape[1]}x{test_frame.shape[0]}")
+                            return
+                        else:
+                            print(f"❌ Câmara {device_id} abriu mas não capturou frame válido")
+                            self.cap.release()
+                    else:
+                        print(f"❌ Não foi possível abrir câmara {device_id} com backend {backend}")
+                        
+                except Exception as e:
+                    print(f"❌ Erro com câmara {device_id} e backend {backend}: {e}")
+                    if self.cap:
+                        self.cap.release()
+                    continue
+        
+        # se chegamos aqui, nenhuma câmara funcionou
+        print("\n⚠️ Nenhuma câmara funcional encontrada!")
+        print("💡 Dicas para resolver:")
+        print("  - Verifique se a câmara está conectada")
+        print("  - Feche outros programas que possam estar a usar a câmara")
+        print("  - Execute: sudo chmod 666 /dev/video*")
+        print("  - Tente executar: sudo usermod -a -G video $USER")
+        print("  - Reinicie o sistema se necessário")
+        
+        # perguntar se quer continuar sem câmara (apenas para reconhecimento de faces já treinadas)
+        if self.face_database:
+            print(f"\n🤔 Encontradas {len(self.face_database)} faces já treinadas.")
+            print("Pode continuar sem câmara para testar o reconhecimento com imagens existentes.")
+            response = input("Continuar sem câmara? (s/n): ").strip().lower()
+            if response in ['s', 'sim', 'y', 'yes']:
+                self.cap = None
+                print("⚠️ Modo sem câmara ativado - apenas teste de reconhecimento com imagens")
+                return
+        
+        raise RuntimeError("❌ Não foi possível inicializar câmara e não há faces treinadas para modo teste")
+    
+    def _ensure_camera_ready(self):
+        """garante que a câmara está pronta para uso"""
+        if self.cap is None:
+            print("⚠️ Modo sem câmara - não é possível capturar novos frames")
+            return False
+            
+        if not self.cap.isOpened():
+            print("🔄 Reinicializando câmara...")
+            try:
+                self._init_camera()
+                if self.cap is None:
+                    return False
+            except:
+                return False
+        
+        # limpar buffer da câmara
+        if self.cap:
+            for _ in range(3):
+                self.cap.read()
+        return True
+    
     def load_database(self):
         """carrega a base de dados de faces treinadas"""
         if os.path.exists(self.database_file):
             try:
                 with open(self.database_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except Exception as e:
+                print(f"Erro ao carregar base de dados: {e}")
                 return {}
         return {}
     
     def save_database(self):
         """guarda a base de dados de faces"""
-        with open(self.database_file, 'w', encoding='utf-8') as f:
-            json.dump(self.face_database, f, indent=2, ensure_ascii=False)
+        try:
+            with open(self.database_file, 'w', encoding='utf-8') as f:
+                json.dump(self.face_database, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Erro ao guardar base de dados: {e}")
     
     def load_trained_model(self):
         """carrega o modelo treinado se existir"""
@@ -107,11 +204,16 @@ class FaceRecognitionSystem:
                     self.face_embeddings = embeddings_data['embeddings']
                     self.face_labels = embeddings_data['labels']
                 
-                self.is_model_trained = True
-                print(f"✓ Modelo carregado com {len(self.face_embeddings)} amostras")
-                print(f"✓ Classes treinadas: {list(self.label_encoder.classes_)}")
+                # verificar se o modelo tem dados válidos
+                if len(self.face_embeddings) > 0 and len(set(self.face_labels)) >= 2:
+                    self.is_model_trained = True
+                    print(f"✓ Modelo carregado com {len(self.face_embeddings)} amostras")
+                    print(f"✓ Classes treinadas: {list(self.label_encoder.classes_)}")
+                else:
+                    print("⚠️ Modelo carregado mas dados insuficientes para classificação")
+                    self.is_model_trained = False
         except Exception as e:
-            print(f"Aviso: Erro ao carregar modelo: {e}")
+            print(f"⚠️ Erro ao carregar modelo: {e}")
             self.is_model_trained = False
     
     def save_trained_model(self):
@@ -147,6 +249,11 @@ class FaceRecognitionSystem:
     
     def train_face(self, name, num_samples=15):
         """treina uma nova face capturando múltiplas amostras e criando embeddings"""
+        if self.cap is None:
+            print("❌ Não é possível treinar sem câmara!")
+            print("💡 Para treinar novas faces, precisa de resolver o problema da câmara primeiro.")
+            return
+            
         print(f"A treinar face para: {name}")
         print("Prima 'c' para capturar uma amostra, 'q' para terminar")
         print("Se a janela não abrir, verifique se tem permissões para usar a câmara")
@@ -159,6 +266,11 @@ class FaceRecognitionSystem:
         samples_captured = 0
         valid_embeddings = []
         window_name = 'Treinar Face'
+        
+        # garantir que a câmara está pronta
+        if not self._ensure_camera_ready():
+            print("❌ Câmara não está disponível para treino!")
+            return
         
         # criar janela com propriedades específicas
         cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
@@ -237,64 +349,61 @@ class FaceRecognitionSystem:
             print("❌ Nenhuma amostra válida capturada!")
     
     def train_classifier(self):
-        """treina o classificador com os embeddings coletados"""
-        if len(self.face_embeddings) < 2:
-            print("Aviso: Precisa de pelo menos 2 amostras para treinar o classificador")
+        """treina o classificador SVM com os embeddings coletados"""
+        if len(self.face_embeddings) == 0:
+            print("❌ Nenhum embedding disponível para treino")
             return False
         
-        if len(set(self.face_labels)) < 2:
-            print("Aviso: Precisa de pelo menos 2 pessoas diferentes para treinar o classificador")
+        # verificar se temos pelo menos 2 pessoas diferentes
+        unique_labels = set(self.face_labels)
+        if len(unique_labels) < 2:
+            print(f"❌ Precisa de pelo menos 2 pessoas diferentes. Atual: {list(unique_labels)}")
             return False
+        
+        print(f"🔄 A treinar classificador com {len(self.face_embeddings)} amostras de {len(unique_labels)} pessoas...")
         
         try:
-            print("A treinar classificador...")
-            
             # converter para arrays numpy
             X = np.array(self.face_embeddings)
             y = np.array(self.face_labels)
             
             # codificar labels
-            y_encoded = self.label_encoder.fit_transform(y)
+            self.label_encoder.fit(y)
+            y_encoded = self.label_encoder.transform(y)
             
-            # dividir dados para treino e teste
-            if len(X) > 4:
+            # dividir dados se tivermos amostras suficientes
+            if len(X) >= 6:  # pelo menos 3 amostras por pessoa para 2 pessoas
                 X_train, X_test, y_train, y_test = train_test_split(
                     X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
                 )
             else:
-                X_train, y_train = X, y_encoded
-                X_test, y_test = X, y_encoded
+                X_train, X_test = X, X
+                y_train, y_test = y_encoded, y_encoded
             
-            # treinar classificador SVM
+            # treinar classificador SVM com parâmetros otimizados
             self.classifier = SVC(
-                kernel='rbf',
-                probability=True,
-                C=1.0,
+                kernel='rbf', 
+                probability=True, 
+                C=1.0, 
                 gamma='scale',
                 random_state=42
             )
             
             self.classifier.fit(X_train, y_train)
             
-            # avaliar performance
+            # calcular precisão
             y_pred = self.classifier.predict(X_test)
             accuracy = accuracy_score(y_test, y_pred)
             
+            print(f"✓ Classificador treinado com precisão: {accuracy:.2%}")
+            
             self.is_model_trained = True
-            
-            print(f"✓ Classificador treinado com sucesso!")
-            print(f"✓ Precisão: {accuracy:.2%}")
-            print(f"✓ Amostras de treino: {len(X_train)}")
-            print(f"✓ Classes: {list(self.label_encoder.classes_)}")
-            
-            # guardar modelo
             self.save_trained_model()
             
             return True
             
         except Exception as e:
-            print(f"Erro ao treinar classificador: {e}")
-            self.is_model_trained = False
+            print(f"❌ Erro ao treinar classificador: {e}")
             return False
     
     def recognize_faces(self, frame):
@@ -325,16 +434,6 @@ class FaceRecognitionSystem:
             # apenas retornar se a confiança for suficiente
             if confidence >= self.confidence_threshold:
                 matches[predicted_name] = confidence
-                
-                # mostrar top 3 previsões para debug (apenas se verbose)
-                if hasattr(self, 'verbose') and self.verbose:
-                    top_indices = np.argsort(probabilities)[::-1][:3]
-                    print(f"Top previsões: ", end="")
-                    for i, idx in enumerate(top_indices):
-                        name = self.label_encoder.inverse_transform([idx])[0]
-                        prob = probabilities[idx]
-                        print(f"{name}({prob:.2f}) ", end="")
-                    print()
             
         except Exception as e:
             print(f"Erro no reconhecimento: {e}")
@@ -379,6 +478,11 @@ class FaceRecognitionSystem:
     
     def run_recognition(self):
         """executa o reconhecimento em tempo real"""
+        if self.cap is None:
+            print("❌ Não é possível executar reconhecimento em tempo real sem câmara!")
+            print("💡 Use a opção 6 para testar com imagens armazenadas.")
+            return
+            
         print("Sistema de reconhecimento iniciado")
         print("Controlos:")
         print("- 't': treinar nova face")
@@ -389,6 +493,11 @@ class FaceRecognitionSystem:
         mode = "recognition"
         window_name = 'Sistema de Reconhecimento Facial'
         
+        # garantir que a câmara está pronta
+        if not self._ensure_camera_ready():
+            print("❌ Câmara não está disponível!")
+            return
+        
         # criar janela
         cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
         
@@ -396,7 +505,8 @@ class FaceRecognitionSystem:
             while True:
                 ret, frame = self.cap.read()
                 if not ret:
-                    print("Erro: Não foi possível capturar frame")
+                    print("⚠️ Erro ao capturar frame, a tentar reinicializar câmara...")
+                    self._ensure_camera_ready()
                     time.sleep(0.1)
                     continue
                 
@@ -438,6 +548,8 @@ class FaceRecognitionSystem:
         
         except KeyboardInterrupt:
             print("\nInterrompido pelo utilizador")
+        except Exception as e:
+            print(f"Erro inesperado: {e}")
         finally:
             cv2.destroyWindow(window_name)
             self.cleanup()
@@ -531,59 +643,146 @@ class FaceRecognitionSystem:
             print(f"Pessoa {name} não encontrada na base de dados")
     
     def cleanup(self):
-        """limpa recursos"""
-        self.cap.release()
-        cv2.destroyAllWindows()
+        """limpa recursos de forma segura"""
+        try:
+            if self.cap and self.cap.isOpened():
+                self.cap.release()
+                print("✓ Câmara libertada")
+        except:
+            pass
+        
+        try:
+            cv2.destroyAllWindows()
+            cv2.waitKey(1)  # processar eventos pendentes
+        except:
+            pass
+    
+    def test_recognition_with_stored_images(self):
+        """testa o reconhecimento usando imagens já armazenadas"""
+        if not self.is_model_trained:
+            print("❌ Modelo não está treinado!")
+            return
+        
+        if not self.face_database:
+            print("❌ Nenhuma face armazenada para testar!")
+            return
+        
+        print("🧪 Testando reconhecimento com imagens armazenadas...")
+        
+        total_tests = 0
+        correct_predictions = 0
+        
+        for person_name, samples in self.face_database.items():
+            print(f"\n🔍 Testando {person_name}...")
+            person_correct = 0
+            person_total = 0
+            
+            # testar algumas imagens de cada pessoa
+            test_samples = samples[:5] if len(samples) > 5 else samples
+            
+            for sample in test_samples:
+                filepath = sample['filepath']
+                if os.path.exists(filepath):
+                    try:
+                        # carregar e testar imagem
+                        image = cv2.imread(filepath)
+                        if image is not None:
+                            matches = self.recognize_faces(image)
+                            
+                            person_total += 1
+                            total_tests += 1
+                            
+                            if matches:
+                                predicted_person = max(matches.keys(), key=lambda k: matches[k])
+                                confidence = matches[predicted_person]
+                                
+                                if predicted_person == person_name:
+                                    person_correct += 1
+                                    correct_predictions += 1
+                                    print(f"  ✅ {sample['filename']}: {predicted_person} ({confidence:.2%})")
+                                else:
+                                    print(f"  ❌ {sample['filename']}: Previsto {predicted_person} ({confidence:.2%}), Esperado {person_name}")
+                            else:
+                                print(f"  ⚠️ {sample['filename']}: Nenhuma face reconhecida")
+                    except Exception as e:
+                        print(f"  ❌ Erro ao processar {filepath}: {e}")
+            
+            if person_total > 0:
+                person_accuracy = person_correct / person_total
+                print(f"📊 {person_name}: {person_correct}/{person_total} ({person_accuracy:.2%})")
+        
+        if total_tests > 0:
+            overall_accuracy = correct_predictions / total_tests
+            print(f"\n📈 Precisão Geral: {correct_predictions}/{total_tests} ({overall_accuracy:.2%})")
+        else:
+            print("❌ Nenhum teste realizado")
 
 
 def main():
     """função principal com menu interativo"""
-    system = FaceRecognitionSystem()
+    try:
+        system = FaceRecognitionSystem()
+    except RuntimeError as e:
+        print(f"❌ Erro ao inicializar sistema: {e}")
+        print("Verifique se:")
+        print("- A câmara está conectada")
+        print("- Nenhum outro programa está a usar a câmara")
+        print("- Tem permissões para aceder à câmara")
+        return
     
-    while True:
-        print("\n=== Sistema de Reconhecimento Facial Avançado ===")
-        print("1. Iniciar reconhecimento em tempo real")
-        print("2. Treinar nova face")
-        print("3. Listar faces treinadas")
-        print("4. Retreinar modelo completo")
-        print("5. Remover pessoa")
-        print("6. Sair")
-        
-        if system.is_model_trained:
-            print(f"Status: Modelo treinado com {len(system.face_embeddings)} amostras")
-        else:
-            print("Status: Modelo não treinado")
-        
-        choice = input("Escolha uma opção: ").strip()
-        
-        if choice == '1':
+    try:
+        while True:
+            print("\n=== Sistema de Reconhecimento Facial Avançado ===")
+            print("1. Iniciar reconhecimento em tempo real")
+            print("2. Treinar nova face")
+            print("3. Listar faces treinadas")
+            print("4. Retreinar modelo completo")
+            print("5. Remover pessoa")
+            print("6. Testar reconhecimento com imagens armazenadas")
+            print("7. Sair")
+            
             if system.is_model_trained:
-                system.run_recognition()
+                print(f"Status: ✅ Modelo treinado com {len(system.face_embeddings)} amostras")
             else:
-                print("❌ Precisa treinar pelo menos 2 pessoas diferentes primeiro!")
-        elif choice == '2':
-            name = input("Nome da pessoa: ").strip()
-            if name:
-                num_samples = input("Número de amostras (padrão 15): ").strip()
-                try:
-                    num_samples = int(num_samples) if num_samples else 15
-                except:
-                    num_samples = 15
-                system.train_face(name, num_samples)
-        elif choice == '3':
-            system.list_trained_faces()
-        elif choice == '4':
-            system.retrain_from_database()
-        elif choice == '5':
-            name = input("Nome da pessoa a remover: ").strip()
-            if name:
-                system.delete_person(name)
-        elif choice == '6':
-            break
-        else:
-            print("Opção inválida")
+                print("Status: ❌ Modelo não treinado")
+            
+            choice = input("Escolha uma opção: ").strip()
+            
+            if choice == '1':
+                if system.is_model_trained:
+                    system.run_recognition()
+                else:
+                    print("❌ Precisa treinar pelo menos 2 pessoas diferentes primeiro!")
+            elif choice == '2':
+                name = input("Nome da pessoa: ").strip()
+                if name:
+                    num_samples = input("Número de amostras (padrão 15): ").strip()
+                    try:
+                        num_samples = int(num_samples) if num_samples else 15
+                    except:
+                        num_samples = 15
+                    system.train_face(name, num_samples)
+            elif choice == '3':
+                system.list_trained_faces()
+            elif choice == '4':
+                system.retrain_from_database()
+            elif choice == '5':
+                name = input("Nome da pessoa a remover: ").strip()
+                if name:
+                    system.delete_person(name)
+            elif choice == '6':
+                system.test_recognition_with_stored_images()
+            elif choice == '7':
+                break
+            else:
+                print("Opção inválida")
     
-    system.cleanup()
+    except KeyboardInterrupt:
+        print("\n🔄 Interrompido pelo utilizador")
+    except Exception as e:
+        print(f"❌ Erro inesperado: {e}")
+    finally:
+        system.cleanup()
 
 
 if __name__ == "__main__":

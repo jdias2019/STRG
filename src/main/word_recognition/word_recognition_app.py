@@ -17,6 +17,10 @@ import matplotlib.pyplot as plt
 import shutil # para remover diretórios recursivamente
 from sklearn.metrics import classification_report, confusion_matrix
 
+# sistema de caminhos
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
 # obtém o diretório absoluto do script
 # útil para caminhos relativos de dados e modelos, garante que o script funcione independentemente de onde é chamado.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -611,7 +615,10 @@ def reconhecer_palavras():
             ts_extracao_inicio = time.perf_counter()
             pontos_chave_frame_atual, _ = extrair_pontos_chave(results_hands, results_pose)
             ts_extracao_fim = time.perf_counter()
-            tempo_total_extracao_pontos_ms += (ts_extracao_fim - ts_extracao_inicio) * 1000
+            extraction_time_ms = (ts_extracao_fim - ts_extracao_inicio) * 1000
+            tempo_total_extracao_pontos_ms += extraction_time_ms
+            
+
             
             sequencia_atual_frames.append(pontos_chave_frame_atual)
             
@@ -630,11 +637,14 @@ def reconhecer_palavras():
                 ts_previsao_inicio = time.perf_counter()
                 prediction_probabilities = modelo.predict(sequencia_para_previsao, verbose=0)[0]
                 ts_previsao_fim = time.perf_counter()
-                tempo_total_previsao_modelo_ms += (ts_previsao_fim - ts_previsao_inicio) * 1000
+                prediction_time_ms = (ts_previsao_fim - ts_previsao_inicio) * 1000
+                tempo_total_previsao_modelo_ms += prediction_time_ms
                 num_previsoes_efetuadas += 1
 
                 id_previsto = np.argmax(prediction_probabilities)
                 confianca_previsao_display = prediction_probabilities[id_previsto]
+                
+
                 
                 # limiar de confiança para considerar previsão válida
                 if confianca_previsao_display > limiar_confianca:
@@ -670,6 +680,8 @@ def reconhecer_palavras():
                 avg_fps = frame_counter_total / tempo_decorrido_total_loop if tempo_decorrido_total_loop > 0 else 0
                 avg_tempo_extracao_ms = tempo_total_extracao_pontos_ms / frame_counter_total if frame_counter_total > 0 else 0
                 avg_tempo_previsao_ms = tempo_total_previsao_modelo_ms / num_previsoes_efetuadas if num_previsoes_efetuadas > 0 else 0
+                
+
 
             cv2.putText(annotated_frame, f"FPS: {avg_fps:.1f}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,0), 2) # amarelo
             cv2.putText(annotated_frame, f"KeyExtract: {avg_tempo_extracao_ms:.1f}ms", (annotated_frame.shape[1]-280, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,0),2)

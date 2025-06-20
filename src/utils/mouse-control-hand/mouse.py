@@ -40,6 +40,11 @@ class OptimizedMouseController:
         self.frame_counter = 0
         self.debug_mode = True  # modo de debug para visualizar valores
         
+        # contadores internos
+        self.click_count = 0
+        self.total_cursor_distance = 0.0
+        self.hands_detected_count = 0
+        
         # inicialização de componentes
         self._setup_screen()
         self._setup_camera()
@@ -148,6 +153,12 @@ class OptimizedMouseController:
             # Garantir que a posição é válida
             if not np.isnan(smooth_pos).any() and not np.isinf(smooth_pos).any():
                 try:
+                    # calcula distância percorrida
+                    if hasattr(self, 'last_cursor_pos'):
+                        distance = np.linalg.norm(smooth_pos - self.last_cursor_pos)
+                        self.total_cursor_distance += distance
+                    self.last_cursor_pos = smooth_pos.copy()
+                    
                     self.mouse.position = tuple(smooth_pos.astype(int))
                     if self.debug_mode:
                         print(f"Movendo cursor para: {tuple(smooth_pos.astype(int))}")
@@ -165,6 +176,7 @@ class OptimizedMouseController:
                 if distance < self.config['click_threshold']:
                     try:
                         self.mouse.click(Button.left)
+                        self.click_count += 1
                         if self.debug_mode:
                             print("Clique detectado!")
                         self.last_click_time = current_time
@@ -208,7 +220,10 @@ class OptimizedMouseController:
                 frame = self.detector.findHands(frame)
                 landmarks, _ = self.detector.findPosition(frame, draw=False)
                 
+
+                
                 if landmarks:
+                    self.hands_detected_count += 1
                     frame = self._handle_gestures(landmarks, frame)
                 else:
                     if self.debug_mode and frame_count % 30 == 0:  # Mostrar apenas a cada 30 frames
@@ -229,6 +244,8 @@ class OptimizedMouseController:
                     frame_count = 0
                     if self.debug_mode:
                         print(f"FPS: {fps:.1f}")
+                    
+
                 
                 frame = add_performance_overlay(frame, fps, "Cursor Control")
                 

@@ -67,11 +67,6 @@ O STRG é composto por vários módulos, cada um com funcionalidades específica
     - Script: `src/utils/3d-hand-viewer/python/hand_detection.py`
     - Descrição: Deteta a mão e os seus pontos de referência (landmarks) e é usado para renderizar uma representação 3D da mão. Este script Python interage com uma game engine chamada Godot.
 
-8.  **Menu de Performance (F8)**
-
-    - Script: `src/utils/menus/performance-menu/performance_menu.py`
-    - Descrição: Apresenta um menu para monitorizar ou ajustar parâmetros relacionados com a performance das aplicações.
-
 ## 🛠️ Tecnologias Utilizadas
 
 - **Python 3.10:** Linguagem principal de desenvolvimento.
@@ -79,7 +74,7 @@ O STRG é composto por vários módulos, cada um com funcionalidades específica
 - **OpenCV:** Para processamento de imagem, captura de vídeo e funcionalidades de visão computacional em vários módulos.
 - **MediaPipe:** Para deteção de mãos, rosto e landmarks de forma eficiente, utilizado em módulos como o `HandTrackingModule.py` e noutros módulos de reconhecimento.
 - **TensorFlow/Keras:** Para a construção, treino e utilização de modelos de Machine Learning (evidenciado pela presença de ficheiros de modelo e pastas `models/`).
-- **Pynput:** Para escuta de eventos de teclado globais (atalhos F1-F8 no launcher).
+- **Pynput:** Para escuta de eventos de teclado globais (atalhos F1-F7 no launcher).
 - **Subprocess:** Para lançar os diferentes módulos em terminais separados.
 - **Outras bibliotecas (implícitas):** `os`, `shutil`, `random`, `math`, e `pickle` para serialização de dados (ex: `face_database.pkl`).
 
@@ -169,7 +164,7 @@ Com o ambiente configurado e ativo, podes iniciar o menu principal do STRG:
     ```bash
     python STRG.py
     ```
-    Isto abrirá uma GUI, a partir da qual poderás lançar os diferentes módulos clicando nos botões correspondentes ou usando as teclas de função (F1-F8). Cada módulo será, por norma, aberto numa nova janela de terminal.
+    Isto abrirá uma GUI, a partir da qual poderás lançar os diferentes módulos clicando nos botões correspondentes ou usando as teclas de função (F1-F7). Cada módulo será, por norma, aberto numa nova janela de terminal.
 
 ### 🤖 Como Usar os Diferentes Módulos
 
@@ -299,9 +294,6 @@ STRG/
 │       │   └── binary_vision.py        # Visão binária.
 │       ├── face-recon/
 │       │   └── face.py                 # Reconhecimento facial.
-│       ├── menus/
-│       │   └── performance-menu/
-│       │       └── performance_menu.py # Menu de performance.
 │       ├── mouse-control-hand/
 │       │   └── mouse_control.py        # Controlo do cursor.
 │       └── volume-control-hand/

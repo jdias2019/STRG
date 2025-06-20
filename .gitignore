@@ -195,3 +195,5 @@ src/main/word_recognition/data/
 src/utils/face-recon/face_database.json
 src/utils/face-recon/trained_faces/
 models/
+src/utils/face-recon/face_embeddings.pkl 
+src/utils/face-recon/face_model.pkl 
